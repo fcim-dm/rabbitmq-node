@@ -25,6 +25,14 @@ const MessageSchema = new mongoose.Schema(
   }
 );
 
+MessageSchema.set("toObject", { virtuals: true });
+MessageSchema.set("toJSON", { virtuals: true });
+
+MessageSchema.virtual("timer").get(function () {
+  const date = new Date(this.created_at).toLocaleTimeString("en-US");
+  return date;
+});
+
 /**
  * @typedef Message
  */

@@ -15,6 +15,7 @@ const mongoose = require("mongoose");
 const passport = require("passport");
 const strategies = require("./auth/passport");
 const { authorize } = require("./auth/index");
+const path = require("path");
 
 /**
  * ENV
@@ -51,6 +52,7 @@ mongoose.connect(MONGODB_URL, {
  * Config server
  */
 app.set("port", PORT);
+app.use(express.static(`${__dirname}/app`));
 app.use(bodyParser.json({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(passport.initialize());
@@ -99,7 +101,7 @@ app.get(
           created_at: -1,
         });
 
-      return res.status(200).json(messages).end();
+      return res.status(200).json({ conversation, messages }).end();
     } catch (error) {
       return res.status(400).json({ error }).end();
     }
@@ -145,7 +147,7 @@ app.post("/login", async (req, res, next) => {
     var valid = await user.isValidPassword(password);
     valid = await user.token();
 
-    return res.status(200).json({ jwt: valid }).end();
+    return res.status(200).json({ jwt: valid, user }).end();
   } catch (error) {
     return res.status(400).json({ error }).end();
   }

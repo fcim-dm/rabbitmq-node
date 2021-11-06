@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>Chat Application</title>
+    <meta name="description" content="Tuts+ Chat Application" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Application -->
+    <div id="wrapper">
+      <div id="menu" v-if="logged">
+        <p class="welcome">Welcome, <b>{{ user.email }}</b></p>
+        <p class="logout">
+          <button id="exit" type="button" @click="exit">Exit</button>
+        </p>
+      </div>
+
+      <!-- Login / Register -->
+      <div id="loginform" v-if="!logged">
+        <p>Login</p>
+        <form name="login" id="login">
+          <label for="name">Email</label>
+          <input
+            type="email"
+            name="email"
+            id="email"
+            placeholder="Email"
+            v-model="form.email"
+            minlength="1"
+          />
+          <label for="name">Password</label>
+          <input
+            type="password"
+            name="password"
+            id="password"
+            placeholder="Password"
+            minlength="1"
+            v-model="form.password"
+          />
+          <div
+            style="display: flex; align-content: center; align-items: center"
+          >
+            <input
+              type="checkbox"
+              name="register"
+              id="register"
+              placeholder="register"
+              style="margin-right: 0.75rem"
+              v-model="form.register"
+            />
+            <label for="register" style="font-size: 1rem">Register ?</label>
+          </div>
+          <button
+            type="button"
+            name="enter"
+            id="enter"
+            value="Enter"
+            @click="loginRegister"
+          >
+            Enter
+          </button>
+        </form>
+      </div>
+
+      <!-- Enter conversation -->
+      <div id="conversationform" v-if="!conversation && logged">
+        <p>Join conversation</p>
+        <form name="conversation" id="conversation">
+          <label for="title">Title</label>
+          <input
+            type="text"
+            name="title"
+            id="title"
+            placeholder="title"
+            v-model="form.title"
+            minlength="1"
+          />
+          <button
+            type="button"
+            name="enter"
+            id="enter"
+            value="Enter"
+            @click="enter"
+          >
+            Enter
+          </button>
+        </form>
+      </div>
+
+      <!-- Messages -->
+      <div id="menu_nd">
+        <p class="welcome" v-if="logged && conversation">
+          Conversation, <b>{{ conversation.title }}</b>
+        </p>
+      </div>
+      <div id="chatbox" v-if="logged && conversation" ref="chatbox">
+        <div class="msgln" v-for="(message, index) in messages">
+          <span class="chat-time">{{ message.timer }}</span>
+          <b class="user-name">{{ message.user.email }}</b>: {{ message.content
+          }}<br />
+        </div>
+      </div>
+
+      <!-- Sending -->
+      <form name="message" v-if="logged && conversation">
+        <input
+          name="usermsg"
+          type="text"
+          id="usermsg"
+          placeholder="Send message..."
+          v-model="form.content"
+        />
+        <button
+          name="submitmsg"
+          type="button"
+          id="submitmsg"
+          value="Send"
+          @click="send"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+
+    <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script type="text/javascript">
+      document.addEventListener("DOMContentLoaded", function () {
+        new Vue({
+          el: "#wrapper",
+          data: {
+            user: {
+              email: "",
+            },
+            conversation: null,
+            messages: [],
+            logged: false,
+            jwt: "",
+            form: {
+              email: "dorin@gmail.com",
+              password: "dorin",
+              register: false,
+              title: "dorin",
+              content: "",
+            },
+          },
+          methods: {
+            exit() {
+              this.logged = false;
+              this.user = { email: "" };
+              this.conversation = null;
+            },
+            bottom() {
+              this.$nextTick(() => {
+                const container = this.$refs.chatbox;
+                container.scrollTop = container.scrollHeight;
+              });
+            },
+            enter() {
+              const self = this;
+              axios
+                .get(`/conversation/${this.form.title}/messages`, {
+                  headers: {
+                    Authorization: `Bearer ${this.jwt}`,
+                  },
+                })
+                .then(({ data }) => {
+                  if (data?.conversation) {
+                    this.messages = data.messages.reverse();
+                    this.conversation = data.conversation;
+                  }
+                  self.bottom();
+                })
+                .catch((error) => {
+                  alert("Conversation not found.");
+                });
+            },
+            send() {
+              const self = this;
+              if (!this.form.content.trim()) return;
+              axios
+                .post(
+                  `/message`,
+                  {
+                    conversation: this.conversation._id,
+                    content: this.form.content,
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${this.jwt}`,
+                    },
+                  }
+                )
+                .then(({ data }) => {
+                  if (data?._id) {
+                    this.messages.push(...[data]);
+                    self.bottom();
+                  }
+                })
+                .catch((error) => {
+                  alert("Conversation not found.");
+                });
+            },
+            loginRegister() {
+              const payload = {
+                email: this.form.email,
+                password: this.form.password,
+              };
+
+              const login = () => {
+                axios({
+                  method: "post",
+                  url: "/login",
+                  data: payload,
+                })
+                  .then(({ data }) => {
+                    if (data?.jwt) {
+                      this.jwt = data.jwt;
+                      this.logged = true;
+                      this.user = data.user;
+                    }
+                  })
+                  .catch((error) => {
+                    alert("Credentials not found.");
+                  });
+              };
+
+              const register = () => {
+                axios({
+                  method: "post",
+                  url: "/register",
+                  data: payload,
+                })
+                  .then(({ data }) => {
+                    if (data?._id) login();
+                  })
+                  .catch((error) => {
+                    alert("Already registered.");
+                  });
+              };
+
+              /**
+               * Action
+               */
+              if (!this.form.register) login();
+              if (this.form.register) register();
+            },
+          },
+        });
+      });
+    </script>
+  </body>
+</html>

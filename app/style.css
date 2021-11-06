@@ -1,0 +1,176 @@
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Calibri";
+}
+
+body {
+  margin: 20px auto;
+  font-family: "Calibri";
+  font-weight: 300;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+}
+
+form {
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+form#login,
+form#conversation {
+  flex-direction: column;
+}
+
+form#login,
+form#conversation label {
+  text-align: left;
+}
+
+form label {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+input {
+  font-family: "Calibri";
+}
+
+a {
+  color: #0000ff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#wrapper,
+#loginform,
+#conversationform {
+  margin: 0 auto;
+  padding: 2rem;
+  background: #eee;
+  width: 600px;
+  max-width: 100%;
+  border: 0.15rem solid #212121;
+  border-radius: 1rem;
+}
+
+#loginform,
+#conversationform {
+  padding-top: 18px;
+  text-align: center;
+  width: 32rem;
+}
+
+#loginform,
+#conversationform p {
+  padding: 15px 25px;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+#chatbox {
+  text-align: left;
+  margin: 0 auto;
+  margin-bottom: 25px;
+  padding: 10px;
+  background: #fff;
+  height: 300px;
+  width: 530px;
+  overflow: auto;
+  border-radius: 1rem;
+  border: 0.15rem solid gray;
+}
+
+#usermsg {
+  flex: 1;
+  border-radius: 1rem;
+  border: 0.15rem solid gray;
+  padding: 1rem;
+}
+
+#email,
+#password,
+#title {
+  border-radius: 1rem;
+  border: 0.15rem solid gray;
+  padding: 1rem;
+}
+
+#submitmsg,
+#enter {
+  background: gray;
+  border: 0.15rem solid gray;
+  color: white;
+  padding: 1rem;
+  font-weight: bold;
+  border-radius: 1rem;
+}
+
+.error {
+  color: #ff0000;
+}
+
+#menu,
+#menu_nd {
+  padding: 2rem 2rem 1rem 2rem;
+  display: flex;
+}
+
+#menu p.welcome,
+#menu_nd p.welcome {
+  flex: 1;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+#menu_nd {
+  padding: 0rem 2rem 1rem 2rem;
+}
+
+a#exit,
+button#exit {
+  color: white;
+  background: gray;
+  padding: 1rem;
+  border-radius: 1rem;
+  font-weight: bold;
+}
+
+.msgln {
+  margin: 0 0 5px 0;
+}
+
+.msgln span.left-info {
+  color: orangered;
+}
+
+.msgln span.chat-time {
+  color: #666;
+  font-size: 60%;
+  vertical-align: super;
+}
+
+.msgln b.user-name,
+.msgln b.user-name-left {
+  font-weight: bold;
+  background: #546e7a;
+  color: white;
+  padding: 2px 4px;
+  font-size: 90%;
+  border-radius: 4px;
+  margin: 0 5px 0 0;
+}
+
+.msgln b.user-name-left {
+  background: orangered;
+}
