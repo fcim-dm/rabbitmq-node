@@ -8,8 +8,10 @@ const ConversationSchema = new mongoose.Schema(
     title: {
       type: String,
       maxlength: 64,
+      minlength: 1,
       trim: true,
       required: true,
+      unique: true
     },
   },
   {

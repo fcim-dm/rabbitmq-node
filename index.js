@@ -14,14 +14,12 @@ const jackrabbit = require("jackrabbit");
 const mongoose = require("mongoose");
 const passport = require("passport");
 const strategies = require("./auth/passport");
-const localStrategy = require("passport-local").Strategy;
 const { authorize } = require("./auth/index");
 
 /**
  * ENV
  */
 const RABBITMQ_URL = process.env.AMQP_URL || "amqp://guest:guest@localhost";
-const RABBITMQ_QUEUE = process.env.TOPIC || "#";
 const MONGODB_URL = process.env.MONGODB_URL || "mongodb://localhost/pad";
 const PORT = process.env.PORT || 5000;
 
@@ -38,7 +36,6 @@ const Message = require("./models/Message");
 console.log("[RabbitMQ]: Connecting...");
 const rabbit = jackrabbit(RABBITMQ_URL);
 const exchange = rabbit.default();
-var queue;
 
 /**
  * Connect MongoDB
@@ -60,35 +57,69 @@ app.use(passport.initialize());
 passport.use("jwt", strategies.jwt);
 
 /**
+ * Upsert conversation
+ * @param {*} title
+ * @returns
+ */
+const up_conversation = async (title) => {
+  var conversation = await Conversation.findOne({ title });
+
+  if (!conversation) conversation = await new Conversation({ title }).save();
+
+  /**
+   * Make queue
+   */
+  const qname = `conversation@${conversation._id.toString()}`;
+  exchange.queue({
+    name: qname,
+    durable: true,
+  });
+
+  /**
+   * Consume / Subscribe to queue
+   */
+  const queue = exchange.queue({ name: qname, durable: true });
+  queue.consume(receiver);
+
+  return conversation;
+};
+
+/**
  * Endpoints
  */
-app.get("/subscribe", function (req, res) {
-  queue = exchange.queue({ name: RABBITMQ_QUEUE, durable: true });
-  queue.consume(receiver);
-  return res.end();
-});
+app.get(
+  "/conversation/:title/messages",
+  authorize(),
+  async (req, res, next) => {
+    try {
+      const conversation = await up_conversation(req.params.title);
+      const messages = await Message.find({ conversation })
+        .populate("user")
+        .sort({
+          created_at: -1,
+        });
 
-app.post("/conversation", authorize(), async (req, res, next) => {
-  try {
-    const conversation = await new Conversation(req.body).save();
-    return res.status(200).json(conversation).end();
-  } catch (error) {
-    return res.status(400).json({ error }).end();
+      return res.status(200).json(messages).end();
+    } catch (error) {
+      return res.status(400).json({ error }).end();
+    }
   }
-});
+);
 
 app.post("/message", authorize(), async (req, res, next) => {
   try {
     const message = await new Message({
       ...req.body,
       user: req.user._id,
-    }).save();
+    })
+      .save()
+      .then((doc) => doc.populate("user"));
 
     /**
-     * Public message in RabbitMQ
+     * Publish message as JSON string
      */
-    queue = exchange.queue({ name: RABBITMQ_QUEUE, durable: true });
-    exchange.publish(message.toJSON(), { key: RABBITMQ_QUEUE });
+    const qname = `conversation@${message.conversation.toString()}`;
+    exchange.publish(JSON.stringify(message.toJSON()), { key: qname });
 
     return res.status(200).json(message).end();
   } catch (error) {
@@ -121,12 +152,16 @@ app.post("/login", async (req, res, next) => {
 });
 
 /**
- * Listen to RabbitMQ Queue
+ * Listen to RabbitMQ queue messages
  * @param {*} data
  * @param {*} ack
  */
 function receiver(data, ack) {
-  console.log("Message received is: " + JSON.stringify(data));
+  /**
+   * Convert json string to json object
+   */
+  const object = JSON.parse(data);
+  console.log("Message received is: " + JSON.stringify(object));
   ack();
 }
 
