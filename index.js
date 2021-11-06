@@ -15,7 +15,16 @@ const mongoose = require("mongoose");
 const passport = require("passport");
 const strategies = require("./auth/passport");
 const { authorize } = require("./auth/index");
-const path = require("path");
+const http = require("http").Server(app);
+const io = require("socket.io")(http, {
+  path: "/websockets",
+  pingTimeout: 180000,
+  autoConnect: true,
+  pingInterval: 25000,
+  cors: {
+    origin: "*",
+  },
+});
 
 /**
  * ENV
@@ -30,6 +39,8 @@ const PORT = process.env.PORT || 5000;
 const Conversation = require("./models/Conversation");
 const User = require("./models/User");
 const Message = require("./models/Message");
+const Conversations = new Map();
+const SocketsConversations = new Map();
 
 /**
  * Connect RabbitMQ
@@ -115,12 +126,12 @@ app.post("/message", authorize(), async (req, res, next) => {
       user: req.user._id,
     })
       .save()
-      .then((doc) => doc.populate("user"));
+      .then((doc) => doc.populate(["user", "conversation"]));
 
     /**
      * Publish message as JSON string
      */
-    const qname = `conversation@${message.conversation.toString()}`;
+    const qname = `conversation@${message.conversation._id.toString()}`;
     exchange.publish(JSON.stringify(message.toJSON()), { key: qname });
 
     return res.status(200).json(message).end();
@@ -154,22 +165,79 @@ app.post("/login", async (req, res, next) => {
 });
 
 /**
+ * Socket
+ */
+const _socket = () => {
+  /**
+   * Handle socket connection
+   */
+  try {
+    io.use(async (socket, next) => {
+      const query = socket.handshake.query;
+      const conversation = query?.conversation;
+      const current = Conversations.get(conversation);
+      if (!current) Conversations.set(conversation, []);
+      SocketsConversations.set(socket.id, conversation);
+
+      return next();
+    }).on("connection", async (socket) => {
+      console.log(`[Socket]: Client connection ${socket.id}`);
+
+      /**
+       * Add connections
+       */
+      const conversation = SocketsConversations.get(socket.id);
+      const current = Conversations.get(conversation);
+      current.push(socket.id);
+
+      /**
+       * Socket diconnected remove user
+       */
+      socket.on("disconnect", async () => {
+        /**
+         * Clear connections
+         */
+        SocketsConversations.delete(socket.id);
+        var index = current.indexOf(socket.id);
+        if (index !== -1) current.splice(index, 1);
+        console.log(`[Socket]: Client disconnection ${socket.id}`);
+      });
+    });
+
+    console.log(`[Socket]: Successfully Connected`);
+  } catch (error) {
+    console.log(
+      `[Socket]: Unsuccessfully connected with error: ${error.message}`
+    );
+  }
+};
+
+/**
  * Listen to RabbitMQ queue messages
  * @param {*} data
  * @param {*} ack
  */
 function receiver(data, ack) {
+  ack(); // Acknowledgement of RabbitMQ message
+
   /**
    * Convert json string to json object
    */
   const object = JSON.parse(data);
-  console.log("Message received is: " + JSON.stringify(object));
-  ack();
+  if (!object?.conversation?.title) return;
+
+  const current = Conversations.get(object?.conversation?.title);
+  if (!current) return;
+
+  current.forEach((e) => {
+    io.to(e).emit("message", object);
+  });
 }
 
 /**
  * Run Server
  */
-app.listen(app.get("port"), function () {
-  console.log("[Server]: Connecting...");
-});
+_socket();
+http.listen(app.get("port"), () =>
+  console.log(`[Server]]: Server started on port (${app.get("port")})`)
+);

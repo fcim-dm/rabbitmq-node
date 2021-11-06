@@ -125,6 +125,11 @@
     </div>
 
     <!-- JS -->
+    <script
+      src="https://cdn.socket.io/4.3.2/socket.io.min.js"
+      integrity="sha384-KAZ4DtjNhLChOB/hxXuKqhMLYvx3b5MlT55xPEiNmREKRzeEm+RVPlTnAn0ajQNs"
+      crossorigin="anonymous"
+    ></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <script type="text/javascript">
@@ -148,6 +153,28 @@
             },
           },
           methods: {
+            socket() {
+              let socket = io("", {
+                path: "/websockets",
+                transports: ["websocket", "polling", "flashsocket"],
+                query: {
+                  conversation: this.conversation.title,
+                },
+              });
+
+              /**
+               * Listen to socket on message event
+               */
+              socket.on("message", (data) => {
+                const exists = this.messages?.find(
+                  (message) => message?._id === data?._id
+                );
+                if (!exists) {
+                  this.messages.push(...[data]);
+                  this.bottom();
+                }
+              });
+            },
             exit() {
               this.logged = false;
               this.user = { email: "" };
@@ -160,7 +187,6 @@
               });
             },
             enter() {
-              const self = this;
               axios
                 .get(`/conversation/${this.form.title}/messages`, {
                   headers: {
@@ -171,15 +197,15 @@
                   if (data?.conversation) {
                     this.messages = data.messages.reverse();
                     this.conversation = data.conversation;
+                    this.socket();
                   }
-                  self.bottom();
+                  this.bottom();
                 })
                 .catch((error) => {
                   alert("Conversation not found.");
                 });
             },
             send() {
-              const self = this;
               if (!this.form.content.trim()) return;
               axios
                 .post(
@@ -197,7 +223,8 @@
                 .then(({ data }) => {
                   if (data?._id) {
                     this.messages.push(...[data]);
-                    self.bottom();
+                    this.bottom();
+                    this.form.content = "";
                   }
                 })
                 .catch((error) => {
