@@ -111,6 +111,8 @@
           id="usermsg"
           placeholder="Send message..."
           v-model="form.content"
+          @keydown.enter.exact.prevent
+          @keyup.enter.exact="send"
         />
         <button
           name="submitmsg"
