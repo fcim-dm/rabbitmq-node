@@ -239,5 +239,5 @@ function receiver(data, ack) {
  */
 _socket();
 http.listen(app.get("port"), () =>
-  console.log(`[Server]]: Server started on port (${app.get("port")})`)
+  console.log(`[Server]: Server started on port (${app.get("port")})`)
 );
