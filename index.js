@@ -156,6 +156,7 @@ app.post("/login", async (req, res, next) => {
     const user = await User.findOne({ email });
 
     var valid = await user.isValidPassword(password);
+    if (!valid) throw "Invalid.";
     valid = await user.token();
 
     return res.status(200).json({ jwt: valid, user }).end();
